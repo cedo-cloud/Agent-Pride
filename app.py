@@ -3,6 +3,17 @@ from crewai import Agent, Task, Crew, Process
 from langchain_community.chat_models.fake import FakeListChatModel
 import os
 
+
+import crewai, langchain_community
+st.write("crewai version:", crewai.__version__)
+st.write("langchain_community version:", langchain_community.__version__)
+
+import pkg_resources
+for pkg in pkg_resources.working_set:
+    if "crewai" in pkg.project_name.lower() or "langchain" in pkg.project_name.lower():
+        st.write(pkg.project_name, pkg.version)
+
+
 os.environ["OPENAI_API_KEY"] = "DA-FAKE-KEY"
 os.environ["OPENAI_MODEL_NAME"] = "mock-model"
 
