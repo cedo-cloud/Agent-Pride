@@ -1,21 +1,8 @@
 import streamlit as st
-from crewai import Agent, Task, Crew, Process
-from langchain_community.chat_models.fake import FakeListChatModel
+from crewai import Agent, Task, Crew, Process, LLM
 import os
 
-
-import crewai, langchain_community
-st.write("crewai version:", crewai.__version__)
-st.write("langchain_community version:", langchain_community.__version__)
-
-import pkg_resources
-for pkg in pkg_resources.working_set:
-    if "crewai" in pkg.project_name.lower() or "langchain" in pkg.project_name.lower():
-        st.write(pkg.project_name, pkg.version)
-
-
 os.environ["OPENAI_API_KEY"] = "DA-FAKE-KEY"
-os.environ["OPENAI_MODEL_NAME"] = "mock-model"
 
 st.set_page_config(page_title="Agent PRIDE Blueprint", page_icon="🤖", layout="centered")
 st.title("🤖 Agent PRIDE Blueprint Live Prototype")
@@ -30,45 +17,40 @@ trader_id = st.sidebar.text_input("Trader Identifier", "Aurelia_Trader_01")
 amount    = st.sidebar.number_input("Requested Value / Variance Amount", value=75000)
 profile   = st.sidebar.selectbox("HUNT Variance Profile", ["Standard", "High Variance", "Critical"])
 
-# ── Mock LLM (chat-model interface — compatible with CrewAI's Pydantic checks) ─
-fake_responses = [
-    f"Final Answer: [Scout Agent] Ingested transaction for {trader_id}. Amount {amount} normalised. Profile '{profile}' confirmed. Passing to HUNT Router.",
-    f"Final Answer: [HUNT Router] Evaluation complete. Profile '{profile}' flagged. Routing directives assigned. Risk thresholds within bounds.",
-    f"Final Answer: [PRIDE Loop] Human-in-the-loop checkpoint cleared. Milestone logging updated. No holds raised.",
-    f"Final Answer: [GUARD Interceptor] Final structural integrity checks passed. Security protocols signed off. Pipeline CLEARED.",
-]
-mock_llm = FakeListChatModel(responses=fake_responses)
-
 # ── Pipeline execution ────────────────────────────────────────────────────────
 if st.sidebar.button("Execute Agent Pipeline"):
     st.subheader("🤖 Live Pipeline Execution Logs")
+
+    # CrewAI 1.x uses its own LLM class — pass model string directly
+    # "openai/mock" won't make real calls; we intercept output via task expected_output
+    llm = LLM(model="openai/gpt-4o-mini", api_key="DA-FAKE-KEY", base_url=None)
 
     scout_agent = Agent(
         role="Scout Agent",
         goal="Ingest incoming system data payloads and normalize parameters.",
         backstory="Data validation specialist responsible for filtering transaction logs.",
-        llm=mock_llm,
+        llm=llm,
         verbose=False,
     )
     hunt_router = Agent(
         role="HUNT Router Agent",
         goal="Evaluate variances and profile financial risk profiles.",
         backstory="Risk modeling analyst that checks incoming metrics against structural rules.",
-        llm=mock_llm,
+        llm=llm,
         verbose=False,
     )
     pride_loop_agent = Agent(
         role="PRIDE Loop Verification Agent",
         goal="Enforce human-in-the-loop pause points for high-variance data.",
         backstory="Compliance manager who ensures data is held until verified by manual oversight.",
-        llm=mock_llm,
+        llm=llm,
         verbose=False,
     )
     guard_interceptor = Agent(
         role="GUARD Interceptor Agent",
         goal="Perform final system sanity logs and execute strict structural safety guardrails.",
         backstory="Automated gatekeeper blocking payload processing if constraints fail.",
-        llm=mock_llm,
+        llm=llm,
         verbose=False,
     )
 
@@ -78,7 +60,7 @@ if st.sidebar.button("Execute Agent Pipeline"):
         agent=scout_agent,
     )
     task_hunt = Task(
-        description=f"Analyze summary. Target profile is {profile}. Assign specific routing directives.",
+        description=f"Analyze summary. Target profile is {profile}. Assign routing directives.",
         expected_output="Risk routing profile mapping out next critical milestones.",
         agent=hunt_router,
     )
