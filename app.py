@@ -1,181 +1,106 @@
 import streamlit as st
 from crewai import Agent, Task, Crew, Process
-from langchain_openai import ChatOpenAI
+from langchain_community.llms import FakeListLLM
 import os
-import traceback
 
-# ── Page config ──────────────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="Agent PRIDE Blueprint",
-    page_icon="🤖",
-    layout="centered",
-)
+# Set dummy env strings so CrewAI doesn't throw standard missing-key errors
+os.environ["OPENAI_API_KEY"] = "DA-FAKE-KEY"
+os.environ["OPENAI_MODEL_NAME"] = "mock-model"
 
-st.title("🤖 Agent PRIDE Blueprint")
-st.caption("CrewAI Multi-Agent Pipeline · Sequential Execution")
+st.set_page_config(page_title="Agent PRIDE Blueprint", page_icon="🤖", layout="centered")
 
-# ── Sidebar: credentials + payload ───────────────────────────────────────────
-with st.sidebar:
-    st.header("🔑 API Configuration")
-    api_key = st.text_input(
-        "OpenAI API Key",
-        type="password",
-        placeholder="sk-...",
-        help="Required for agents to reason. Not stored beyond this session.",
-    )
-    model_name = st.selectbox(
-        "Model",
-        ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
-        index=1,          # default to cheaper model
-    )
+st.title("🤖 Agent PRIDE Blueprint Live Prototype")
+st.caption("Option B: CrewAI Multi-Agent Team running live via Streamlit")
 
-    st.divider()
-    st.header("📦 Transaction Payload")
-    trader_id = st.text_input("Trader Identifier", "Aurelia_Trader_01")
-    amount = st.number_input("Requested Value / Variance Amount", value=75_000, step=1_000)
-    profile = st.selectbox(
-        "HUNT Variance Profile", ["Standard", "High Variance", "Critical"]
-    )
+# -----------------------------------------------------------------------------
+# SIDEBAR CONFIGURATION
+# -----------------------------------------------------------------------------
+st.sidebar.header("🔑 System Configuration")
+st.sidebar.info("✨ Running on Free-Tier Mock LLM (No API Key Required)")
 
-    run_button = st.button("▶ Execute Agent Pipeline", use_container_width=True)
+st.sidebar.header("📦 Transaction Payload")
+trader_id = st.sidebar.text_input("Trader Identifier", "Aurelia_Trader_01")
+amount = st.sidebar.number_input("Requested Value / Variance Amount", value=75000)
+profile = st.sidebar.selectbox("HUNT Variance Profile", ["Standard", "High Variance", "Critical"])
 
-# ── Guard: require API key before running ────────────────────────────────────
-if run_button:
-    if not api_key or len(api_key.strip()) < 20:
-        st.error("Please enter your OpenAI API key in the sidebar before running.")
-        st.stop()
+# -----------------------------------------------------------------------------
+# MOCK LLM ENGINE SETUP (Bypasses paid API restrictions)
+# -----------------------------------------------------------------------------
+fake_responses = [
+    f"[Scout Agent]: Ingested transaction payload for {trader_id}. Parameters normalized. Passing to HUNT Router.",
+    f"[HUNT Router]: Evaluation complete. Profile flag is set to '{profile}'. Calibrating RANK constraints and routing accordingly.",
+    f"[PRIDE Loop]: Analyzing pipeline flags. Action: Simulated Human-in-the-loop pause point cleared. Milestone logging updated.",
+    f"[GUARD Interceptor]: Final structural integrity checks validated. Security protocols signed off. Pipeline complete."
+]
+mock_llm = FakeListLLM(responses=fake_responses)
 
-    os.environ["OPENAI_API_KEY"] = api_key
-
-    # Build a shared LLM object so every agent uses the chosen model
-    llm = ChatOpenAI(model=model_name, temperature=0.2, openai_api_key=api_key)
-
-    st.subheader("📋 Pipeline Execution")
-
-    # ── Agent definitions ─────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# PIPELINE EXECUTION
+# -----------------------------------------------------------------------------
+if st.sidebar.button("Execute Agent Pipeline"):
+    st.subheader("🤖 Live Pipeline Execution Logs")
+    
+    # 1. Agent Definitions with local mock LLM assigned
     scout_agent = Agent(
-        role="Scout Agent",
-        goal="Ingest incoming system data payloads and normalise parameters.",
-        backstory="Data validation specialist responsible for filtering transaction logs.",
-        llm=llm,
-        verbose=False,   # verbose=True sends to stdout, not Streamlit
+        role='Scout Agent',
+        goal='Ingest incoming system data payloads and normalize parameters.',
+        backstory='Data validation specialist responsible for filtering transaction logs.',
+        llm=mock_llm,
+        verbose=True
     )
     hunt_router = Agent(
-        role="HUNT Router Agent",
-        goal="Evaluate variances and profile financial risk levels.",
-        backstory="Risk modelling analyst that checks metrics against structural rules.",
-        llm=llm,
-        verbose=False,
+        role='HUNT Router Agent',
+        goal='Evaluate variances and profile financial risk profiles.',
+        backstory='Risk modeling analyst that checks incoming metrics against structural rules.',
+        llm=mock_llm,
+        verbose=True
     )
     pride_loop_agent = Agent(
-        role="PRIDE Loop Verification Agent",
-        goal="Enforce human-in-the-loop pause points for high-variance data.",
-        backstory=(
-            "Compliance manager who ensures data is held until verified "
-            "by manual oversight."
-        ),
-        llm=llm,
-        verbose=False,
+        role='PRIDE Loop Verification Agent',
+        goal='Enforce human-in-the-loop pause points for high-variance data.',
+        backstory='Compliance manager who ensures data is held until verified by manual oversight.',
+        llm=mock_llm,
+        verbose=True
     )
     guard_interceptor = Agent(
-        role="GUARD Interceptor Agent",
-        goal="Perform final sanity checks and enforce strict structural safety guardrails.",
-        backstory="Automated gatekeeper that blocks processing if constraints fail.",
-        llm=llm,
-        verbose=False,
+        role='GUARD Interceptor Agent',
+        goal='Perform final system sanity logs and execute strict structural safety guardrails.',
+        backstory='Automated gatekeeper blocking payload processing if constraints fail.',
+        llm=mock_llm,
+        verbose=True
     )
 
-    # ── Task definitions ──────────────────────────────────────────────────────
+    # 2. Task Definitions
     task_scout = Task(
-        description=(
-            f"Ingest payload — Trader: {trader_id}, "
-            f"Amount: {amount:,}, Profile: {profile}. "
-            "Validate and return a structured transaction summary."
-        ),
-        expected_output="Structured transaction summary with validated fields.",
-        agent=scout_agent,
+        description=f"Ingest payload: Trader={trader_id}, Amount={amount}, Profile={profile}.",
+        expected_output="Structured transaction summary.",
+        agent=scout_agent
     )
     task_hunt = Task(
-        description=(
-            f"Analyse the transaction summary. The variance profile is '{profile}'. "
-            "Assign routing directives and flag any risk thresholds breached."
-        ),
-        expected_output="Risk routing profile with next critical milestones and flags.",
-        agent=hunt_router,
+        description=f"Analyze summary. Target profile is {profile}. Assign specific routing directives.",
+        expected_output="Risk routing profile mapping out next critical milestones.",
+        agent=hunt_router
     )
     task_pride = Task(
-        description=(
-            "Evaluate the HUNT Router output. "
-            "If the profile is 'High Variance' or 'Critical', simulate a PRIDE Loop "
-            "validation pause and document the checkpoint status."
-        ),
+        description="Evaluate HUNT Router output. Simulate PRIDE Loop validation constraints if flagged.",
         expected_output="Audit block confirming checkpoint processing status.",
-        agent=pride_loop_agent,
+        agent=pride_loop_agent
     )
     task_guard = Task(
-        description=(
-            "Run final structural integrity checks against all prior outputs. "
-            "Produce a concise validation log with a clear PASS or FAIL decision."
-        ),
-        expected_output="Final pipeline validation log with PASS/FAIL and reasoning.",
-        agent=guard_interceptor,
+        description="Perform final structural integrity rules and output clear validation logs.",
+        expected_output="Final pipeline validation log confirming execution clearance.",
+        agent=guard_interceptor
     )
 
-    # ── Crew assembly & execution ─────────────────────────────────────────────
+    # 3. Running the Crew
     crew = Crew(
         agents=[scout_agent, hunt_router, pride_loop_agent, guard_interceptor],
         tasks=[task_scout, task_hunt, task_pride, task_guard],
-        process=Process.sequential,
-        verbose=False,
+        process=Process.sequential
     )
 
-    # Show per-task progress while the crew runs
-    task_labels = [
-        ("🔍 Scout Agent — ingesting payload", task_scout),
-        ("📊 HUNT Router — risk profiling", task_hunt),
-        ("🔄 PRIDE Loop — checkpoint validation", task_pride),
-        ("🛡️ GUARD Interceptor — final integrity check", task_guard),
-    ]
-
-    progress_bar = st.progress(0)
-    status_area = st.empty()
-    log_expander = st.expander("📄 Per-task outputs", expanded=False)
-
-    try:
-        with st.spinner("Agents coordinating…"):
-            result = crew.kickoff()
-
-        progress_bar.progress(100)
-        st.success("✅ Pipeline execution complete")
-
-        # Show final output
-        st.subheader("🗂️ Final Agent Output")
-        final_text = (
-            result.raw
-            if hasattr(result, "raw")
-            else str(result)
-        )
-        st.text_area("Output", value=final_text, height=320, label_visibility="collapsed")
-
-        # Show individual task outputs if available
-        with log_expander:
-            tasks_output = getattr(result, "tasks_output", None)
-            if tasks_output:
-                for i, (label, _) in enumerate(task_labels):
-                    st.markdown(f"**{label}**")
-                    task_out = tasks_output[i] if i < len(tasks_output) else None
-                    if task_out:
-                        st.write(
-                            task_out.raw
-                            if hasattr(task_out, "raw")
-                            else str(task_out)
-                        )
-                    st.divider()
-            else:
-                st.info("Individual task logs not available for this CrewAI version.")
-
-    except Exception as exc:
-        progress_bar.empty()
-        st.error(f"Pipeline failed: {exc}")
-        with st.expander("🐛 Full traceback"):
-            st.code(traceback.format_exc())
+    with st.spinner("Agents are coordinating..."):
+        output = crew.kickoff()
+        
+    st.success("✓ Pipeline Execution Finished")
+    st.text_area("Agent Communication Output", value=str(output), height=250)
