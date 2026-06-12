@@ -1,95 +1,103 @@
 import streamlit as st
-from crewai import Agent, Task, Crew, Process, LLM
-import os
-
-os.environ["OPENAI_API_KEY"] = "DA-FAKE-KEY"
+import time
 
 st.set_page_config(page_title="Agent PRIDE Blueprint", page_icon="🤖", layout="centered")
 st.title("🤖 Agent PRIDE Blueprint Live Prototype")
-st.caption("Option B: CrewAI Multi-Agent Team running live via Streamlit")
+st.caption("CrewAI Multi-Agent Pipeline · Simulated Execution · No API Key Required")
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 st.sidebar.header("🔑 System Configuration")
-st.sidebar.info("✨ Running on Free-Tier Mock LLM (No API Key Required)")
+st.sidebar.info("✨ Running on Free-Tier Simulated Pipeline (No API Key Required)")
 
 st.sidebar.header("📦 Transaction Payload")
 trader_id = st.sidebar.text_input("Trader Identifier", "Aurelia_Trader_01")
 amount    = st.sidebar.number_input("Requested Value / Variance Amount", value=75000)
 profile   = st.sidebar.selectbox("HUNT Variance Profile", ["Standard", "High Variance", "Critical"])
 
-# ── Pipeline execution ────────────────────────────────────────────────────────
-if st.sidebar.button("Execute Agent Pipeline"):
+# ── Simulated agent outputs ───────────────────────────────────────────────────
+def get_agent_outputs(trader_id, amount, profile):
+    risk_level = {"Standard": "LOW", "High Variance": "ELEVATED", "Critical": "HIGH"}[profile]
+    hold = profile in ("High Variance", "Critical")
+    guard_result = "PASS" if profile == "Standard" else "PASS WITH CONDITIONS" if profile == "High Variance" else "HOLD — MANUAL REVIEW REQUIRED"
+
+    return [
+        {
+            "label": "🔍 Scout Agent",
+            "role": "Payload Ingestion & Normalisation",
+            "output": (
+                f"TRANSACTION SUMMARY\n"
+                f"───────────────────────────────\n"
+                f"Trader ID   : {trader_id}\n"
+                f"Amount      : ${amount:,.2f}\n"
+                f"Profile     : {profile}\n"
+                f"Risk Level  : {risk_level}\n"
+                f"Status      : NORMALISED ✓\n"
+                f"Timestamp   : {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}"
+            ),
+        },
+        {
+            "label": "📊 HUNT Router Agent",
+            "role": "Risk Profiling & Routing",
+            "output": (
+                f"ROUTING DIRECTIVE\n"
+                f"───────────────────────────────\n"
+                f"Profile Flag  : {profile}\n"
+                f"Risk Score    : {risk_level}\n"
+                f"Threshold     : {'WITHIN BOUNDS' if profile == 'Standard' else 'THRESHOLD BREACHED'}\n"
+                f"Next Action   : {'Standard clearance queue' if profile == 'Standard' else 'Escalate to PRIDE Loop for validation hold'}\n"
+                f"Milestone     : HUNT_ROUTE_{risk_level}_{'OK' if profile == 'Standard' else 'FLAGGED'}"
+            ),
+        },
+        {
+            "label": "🔄 PRIDE Loop Agent",
+            "role": "Human-in-the-Loop Checkpoint",
+            "output": (
+                f"CHECKPOINT AUDIT BLOCK\n"
+                f"───────────────────────────────\n"
+                f"Hold Triggered  : {'YES — Awaiting manual sign-off' if hold else 'NO — Auto-cleared'}\n"
+                f"Validation      : {'PENDING OVERSIGHT' if hold else 'CLEARED'}\n"
+                f"Compliance Flag : {'RAISED' if hold else 'NONE'}\n"
+                f"Checkpoint ID   : PRIDE-{trader_id[:6].upper()}-{int(amount) % 9999:04d}\n"
+                f"Status          : {'⚠ HOLD' if hold else '✓ PASSED'}"
+            ),
+        },
+        {
+            "label": "🛡️ GUARD Interceptor Agent",
+            "role": "Final Integrity & Safety Check",
+            "output": (
+                f"FINAL VALIDATION LOG\n"
+                f"───────────────────────────────\n"
+                f"Integrity Check : COMPLETE\n"
+                f"Safety Rules    : ALL EVALUATED\n"
+                f"Decision        : {guard_result}\n"
+                f"Pipeline ID     : GUARD-{abs(hash(trader_id)) % 99999:05d}\n"
+                f"Execution       : {'✅ CLEARED FOR PROCESSING' if profile == 'Standard' else '⚠ CONDITIONS APPLY — SEE PRIDE LOG' if profile == 'High Variance' else '🛑 BLOCKED — ESCALATE TO COMPLIANCE'}"
+            ),
+        },
+    ]
+
+# ── Run pipeline ──────────────────────────────────────────────────────────────
+if st.sidebar.button("▶ Execute Agent Pipeline", use_container_width=True):
     st.subheader("🤖 Live Pipeline Execution Logs")
 
-    # CrewAI 1.x uses its own LLM class — pass model string directly
-    # "openai/mock" won't make real calls; we intercept output via task expected_output
-    llm = LLM(model="openai/gpt-4o-mini", api_key="DA-FAKE-KEY", base_url=None)
+    agents = get_agent_outputs(trader_id, amount, profile)
+    progress = st.progress(0)
 
-    scout_agent = Agent(
-        role="Scout Agent",
-        goal="Ingest incoming system data payloads and normalize parameters.",
-        backstory="Data validation specialist responsible for filtering transaction logs.",
-        llm=llm,
-        verbose=False,
-    )
-    hunt_router = Agent(
-        role="HUNT Router Agent",
-        goal="Evaluate variances and profile financial risk profiles.",
-        backstory="Risk modeling analyst that checks incoming metrics against structural rules.",
-        llm=llm,
-        verbose=False,
-    )
-    pride_loop_agent = Agent(
-        role="PRIDE Loop Verification Agent",
-        goal="Enforce human-in-the-loop pause points for high-variance data.",
-        backstory="Compliance manager who ensures data is held until verified by manual oversight.",
-        llm=llm,
-        verbose=False,
-    )
-    guard_interceptor = Agent(
-        role="GUARD Interceptor Agent",
-        goal="Perform final system sanity logs and execute strict structural safety guardrails.",
-        backstory="Automated gatekeeper blocking payload processing if constraints fail.",
-        llm=llm,
-        verbose=False,
-    )
+    for i, agent in enumerate(agents):
+        with st.spinner(f"Running {agent['label']}…"):
+            time.sleep(0.8)  # simulates processing time
 
-    task_scout = Task(
-        description=f"Ingest payload: Trader={trader_id}, Amount={amount}, Profile={profile}.",
-        expected_output="Structured transaction summary.",
-        agent=scout_agent,
-    )
-    task_hunt = Task(
-        description=f"Analyze summary. Target profile is {profile}. Assign routing directives.",
-        expected_output="Risk routing profile mapping out next critical milestones.",
-        agent=hunt_router,
-    )
-    task_pride = Task(
-        description="Evaluate HUNT Router output. Simulate PRIDE Loop validation constraints if flagged.",
-        expected_output="Audit block confirming checkpoint processing status.",
-        agent=pride_loop_agent,
-    )
-    task_guard = Task(
-        description="Perform final structural integrity rules and output clear validation logs.",
-        expected_output="Final pipeline validation log confirming execution clearance.",
-        agent=guard_interceptor,
-    )
+        with st.expander(f"{agent['label']} — {agent['role']}", expanded=True):
+            st.code(agent["output"], language=None)
 
-    crew = Crew(
-        agents=[scout_agent, hunt_router, pride_loop_agent, guard_interceptor],
-        tasks=[task_scout, task_hunt, task_pride, task_guard],
-        process=Process.sequential,
-        verbose=False,
-    )
+        progress.progress((i + 1) * 25)
 
-    with st.spinner("Agents coordinating…"):
-        try:
-            output = crew.kickoff()
-            st.success("✓ Pipeline Execution Finished")
-            final_text = output.raw if hasattr(output, "raw") else str(output)
-            st.text_area("Agent Communication Output", value=final_text, height=280)
-        except Exception as e:
-            st.error(f"Pipeline failed: {e}")
-            import traceback
-            with st.expander("🐛 Full traceback"):
-                st.code(traceback.format_exc())
+    st.success("✅ Pipeline Execution Complete")
+
+    # Combined summary
+    st.subheader("🗂️ Full Pipeline Output")
+    full_output = "\n\n".join(
+        f"{'='*40}\n{a['label']} | {a['role']}\n{'='*40}\n{a['output']}"
+        for a in agents
+    )
+    st.text_area("Agent Communication Output", value=full_output, height=320, label_visibility="collapsed")
