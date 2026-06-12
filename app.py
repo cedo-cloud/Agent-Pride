@@ -1,6 +1,6 @@
 import streamlit as st
 from crewai import Agent, Task, Crew, Process
-from langchain_openai import ChatOpenAI 
+from langchain_openai import ChatOpenAI
 import os
 import traceback
 
@@ -41,8 +41,8 @@ with st.sidebar:
 
 # ── Guard: require API key before running ────────────────────────────────────
 if run_button:
-    if not api_key or not api_key.startswith("sk-"):
-        st.error("Please enter a valid OpenAI API key in the sidebar before running.")
+    if not api_key or len(api_key.strip()) < 20:
+        st.error("Please enter your OpenAI API key in the sidebar before running.")
         st.stop()
 
     os.environ["OPENAI_API_KEY"] = api_key
